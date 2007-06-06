@@ -1,6 +1,6 @@
 $:.unshift File.join(File.dirname(__FILE__), "../..", "lib")
 
-require 'rets4r/client'
+require 'rets4r/implementations/client15'
 require 'test/unit'
 require 'stringio'
 require 'logger'
@@ -8,8 +8,10 @@ require 'rubygems' rescue nil
 require 'mocha'
 
 module RETS4R
-	class Client
-		public :process_content_type
+	module Implementations
+		class Client15
+			public :process_content_type
+		end
 	end
 	
 	class TestClientGetMetadata < Test::Unit::TestCase
@@ -22,8 +24,10 @@ module RETS4R
 		
 		def setup
 			@logfile = StringIO.open
-			@rets    = RETS4R::Client.new(RETS_URL)
-			@rets.logger = Logger.new(@logfile)
+			@parent = mock("parent")
+			@parent.stubs(:logger).returns(@logger = Logger.new(@logfile))
+			@rets    = RETS4R::Implementations::Client15.new(@parent, RETS_URL)
+			@rets.logger = @logger
 			@rets.logger.level = Logger::DEBUG
 			
 			@rets.stubs(:request).returns(@response = mock("response"))
@@ -39,7 +43,7 @@ module RETS4R
 			@rets.expects(:parse).returns(@results = mock("results"))
 			
 			in_block = false
-			@rets.get_metadata do |results|
+			@rets.get_metadata(@parent) do |results|
 				in_block = true
 				assert_equal @results, results
 			end
@@ -48,13 +52,13 @@ module RETS4R
 		end
 		
 		def test_get_metadata_returns_the_metadata_when_no_block_given
-			rval = @rets.get_metadata
+			rval = @rets.get_metadata(@parent)
 			
 			assert_equal @results, rval
 		end
 		
 		def test_get_metadata_returns_the_blocks_value_when_given_a_block
-			rval = @rets.get_metadata do |results|
+			rval = @rets.get_metadata(@parent) do |results|
 				:block_value
 			end
 			
@@ -72,8 +76,10 @@ module RETS4R
 		
 		def setup
 			@logfile = StringIO.open
-			@rets    = RETS4R::Client.new(RETS_URL)
-			@rets.logger = Logger.new(@logfile)
+			@parent = mock("parent")
+			@parent.stubs(:logger).returns(@logger = Logger.new(@logfile))
+			@rets    = RETS4R::Implementations::Client15.new(@parent, RETS_URL)
+			@rets.logger = @logger
 			@rets.logger.level = Logger::DEBUG
 
 			@rets.stubs(:request).returns(@response = mock("response"))
@@ -95,7 +101,7 @@ module RETS4R
 			@rets.expects(:logout)
 
 			in_block = false
-			@rets.login("user", "pass") do |results|
+			@rets.login(@parent, "user", "pass") do |results|
 				assert_equal @results, results
 				in_block = true
 			end
@@ -106,14 +112,14 @@ module RETS4R
 		def test_logout_called_after_block_execution_if_block_raises
 			assert_raises(CustomError) do
 				@rets.expects(:logout)
-				@rets.login("user", "pass") do |results|
+				@rets.login(@parent, "user", "pass") do |results|
 					raise CustomError
 				end
 			end
 		end
 		
 		def test_login_returns_the_blocks_value
-			rval = @rets.login("user", "pass") do |results|
+			rval = @rets.login(@parent, "user", "pass") do |results|
 				:value
 			end
 			
@@ -121,7 +127,7 @@ module RETS4R
 		end
 		
 		def test_login_without_a_block_returns_the_results
-			results = @rets.login("user", "pass")
+			results = @rets.login(@parent, "user", "pass")
 			assert_equal @results, results
 		end
 	end
@@ -134,8 +140,10 @@ module RETS4R
 		
 		def setup
 			@logfile = StringIO.open
-			@rets    = RETS4R::Client.new(RETS_URL)
-			@rets.logger = Logger.new(@logfile)
+			@parent = mock("parent")
+			@parent.stubs(:logger).returns(@logger = Logger.new(@logfile))
+			@rets    = RETS4R::Implementations::Client15.new(@parent, RETS_URL)
+			@rets.logger = @logger
 			@rets.logger.level = Logger::DEBUG
 		end
 
@@ -150,22 +158,18 @@ module RETS4R
 			assert_nothing_raised() { @rets.user_agent = 'SPRETS/0.1' }
 			assert_nothing_raised() { @rets.set_request_method('GET') }
 			
-			assert_raise(RETS4R::Client::Unsupported) { @rets.set_rets_version('1.4.0') }
-			assert_nothing_raised() { @rets.set_rets_version('1.5') }
 			assert_equal("1.5", @rets.rets_version)
 			assert_equal("RETS/1.5", @rets.get_header("RETS-Version"))
-			assert_nothing_raised() { @rets.rets_version = '1.7' }
-			assert_equal("RETS/1.7", @rets.get_header("RETS-Version"))
 			
 			assert_equal('SPRETS/0.1', @rets.get_user_agent)
 			assert_equal('GET', @rets.get_request_method)
-			assert_equal('1.7', @rets.get_rets_version)
+			assert_equal('1.5', @rets.get_rets_version)
 			
 			assert_nothing_raised() { @rets.request_method = 'POST' }
 			
 			assert_equal('POST', @rets.request_method)
 			
-			assert_nothing_raised() { @rets.set_parser_class(Client::Parser::REXML) }
+			assert_nothing_raised() { @rets.set_parser_class(RETS4R::Parser::REXML) }
 			assert_raise(Client::Unsupported) { @rets.parser_class = MockParser }
 			assert_nothing_raised() { @rets.set_parser_class(MockParser, true) }
 			assert_equal(MockParser, @rets.parser_class)

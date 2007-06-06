@@ -7,7 +7,8 @@ require 'rets4r/client/data'
 require 'rets4r/client/metadata'
 
 module RETS4R
-	class Client
+module Implementations
+	class Client15
 		module Parser
 			class REXML
 				include Parser
@@ -72,4 +73,5 @@ module RETS4R
 			end
 		end
 	end
+end
 end	

@@ -9,6 +9,7 @@ begin
 	require 'rets4r/client/metadata'
 	
 	module RETS4R
+	module Implementations
 		class Client
 			module Parser
 				class XMLParser < XML::Parser
@@ -89,6 +90,7 @@ begin
 				end
 			end
 		end
+	end
 	end 
 rescue LoadError
 	# CParser is not available because we could not load the XMLParser library	
